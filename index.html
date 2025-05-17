@@ -53,18 +53,28 @@
   <div id="controls-panel" style="display:none;">
     <div>
       <label for="dot-count-slider">Dots:</label>
-      <input type="range" id="dot-count-slider" min="50" max="6000" step="10">
-      <span id="dot-count-value">2000</span>
+      <input type="range" id="dot-count-slider" min="50" max="10000" step="10">
+      <span id="dot-count-value">6000</span>
     </div>
     <div>
       <label for="rotation-speed-slider">Rotation Speed:</label>
-      <input type="range" id="rotation-speed-slider" min="0" max="400" step="1">
-      <span id="rotation-speed-value">20</span>
+      <input type="range" id="rotation-speed-slider" min="-100" max="100" step="1">
+      <span id="rotation-speed-value">7</span>
     </div>
     <div>
       <label for="cycle-duration-slider">Anim Cycle (ms):</label>
-      <input type="range" id="cycle-duration-slider" min="1000" max="20000" step="100">
+      <input type="range" id="cycle-duration-slider" min="10" max="7000" step="100">
       <span id="cycle-duration-value">8000</span>
+    </div>
+    <div>
+      <label for="fade-duration-slider">Fade (ms):</label>
+      <input type="range" id="fade-duration-slider" min="100" max="3000" step="50">
+      <span id="fade-duration-value">500</span>
+    </div>
+    <div>
+      <label for="life-duration-slider">Life (ms):</label>
+      <input type="range" id="life-duration-slider" min="100" max="10000" step="100">
+      <span id="life-duration-value">2000</span>
     </div>
   </div>
 
@@ -84,7 +94,7 @@
   canvas.height = height;
 
   let RADIUS    = Math.min(width, height) * 0.35; 
-  let DOT_COUNT = 2000; // Default DOT_COUNT, matches HTML span
+  let DOT_COUNT = 6000; // Adjusted to match HTML span default
   let FOV       = RADIUS * 2; 
   const CENTER    = { x: width/2, y: height/2 };
 
@@ -93,7 +103,7 @@
         FADE  = 500, 
         LIFE  = 2000; 
 
-  let globalRotationSpeed = 0.0002; // Initial rotation speed (slider value 20)
+  let globalRotationSpeed = 0.00007; // Adjusted for initial slider value 7 (7 / 100000)
 
   const landTypes = ['grass', 'sand', 'mountain']; 
   let dots = []; 
@@ -133,13 +143,13 @@
       cancelAnimationFrame(currentDotGenerationRequestId);
     }
     dots.length = 0; 
-    console.log(`Starting incremental dot generation. Target: ${targetCount}`);
+    // console.log(`Starting incremental dot generation. Target: ${targetCount}`);
 
-    const dotsPerChunk = 100; 
+    const dotsPerChunk = 5; 
 
     function generateChunk() {
       if (!landFeature) { 
-          console.warn("generateChunk called without landFeature. Stopping generation.");
+          // console.warn("generateChunk called without landFeature. Stopping generation.");
           currentDotGenerationRequestId = null;
           return;
       }
@@ -149,7 +159,7 @@
 
       for (let i = 0; i < dotsPerChunk && dots.length < targetCount; ) {
         if (attemptsInChunk++ >= maxAttemptsPerChunk) {
-            console.warn(`Max attempts reached for a chunk. Generated ${dots.length}/${targetCount}. Continuing if possible.`);
+            // console.warn(`Max attempts reached for a chunk. Generated ${dots.length}/${targetCount}. Continuing if possible.`);
             break; 
         }
 
@@ -184,7 +194,7 @@
       if (dots.length < targetCount) {
         currentDotGenerationRequestId = requestAnimationFrame(generateChunk);
       } else {
-        console.log(`Finished generating dots. Total: ${dots.length} / ${targetCount} requested.`);
+        // console.log(`Finished generating dots. Total: ${dots.length} / ${targetCount} requested.`);
         currentDotGenerationRequestId = null;
       }
     }
@@ -198,6 +208,10 @@
     const rotationSpeedValueSpan = document.getElementById('rotation-speed-value');
     const cycleDurationSlider = document.getElementById('cycle-duration-slider');
     const cycleDurationValueSpan = document.getElementById('cycle-duration-value');
+    const fadeDurationSlider = document.getElementById('fade-duration-slider');
+    const fadeDurationValueSpan = document.getElementById('fade-duration-value');
+    const lifeDurationSlider = document.getElementById('life-duration-slider');
+    const lifeDurationValueSpan = document.getElementById('life-duration-value');
 
     dotCountSlider.value = DOT_COUNT;
     dotCountValueSpan.textContent = DOT_COUNT;
@@ -208,6 +222,11 @@
 
     cycleDurationSlider.value = CYCLE;
     cycleDurationValueSpan.textContent = CYCLE;
+
+    fadeDurationSlider.value = FADE;
+    fadeDurationValueSpan.textContent = FADE;
+    lifeDurationSlider.value = LIFE;
+    lifeDurationValueSpan.textContent = LIFE;
 
     const debouncedStartDotGeneration = debounce(() => {
       generateDotsIncrementally(DOT_COUNT, geoLandData); 
@@ -229,19 +248,29 @@
       CYCLE = parseInt(e.target.value);
       cycleDurationValueSpan.textContent = CYCLE;
     });
+
+    fadeDurationSlider.addEventListener('input', (e) => {
+      FADE = parseInt(e.target.value);
+      fadeDurationValueSpan.textContent = FADE;
+    });
+
+    lifeDurationSlider.addEventListener('input', (e) => {
+      LIFE = parseInt(e.target.value);
+      lifeDurationValueSpan.textContent = LIFE;
+    });
+
     controlsPanel.style.display = 'block'; 
   }
 
   d3.json('land-50m.json')
     .then(world => {
-      console.log('Loaded world data:', world);
+      // console.log('Loaded world data:', world);
       geoLandData = topojson.feature(world, world.objects.land); 
-      console.log('Land FeatureCollection:', geoLandData);
+      // console.log('Land FeatureCollection:', geoLandData);
 
       loadingScreen.style.display = 'none';
       canvas.style.display = 'block';
       
-      let animationLogCount = 0;
       function animate(){
         ctx.clearRect(0,0,width,height);
         const now    = performance.now();
@@ -267,7 +296,8 @@
           ctx.beginPath();
           ctx.arc(px, py, d.radius * sc, 0, 2*Math.PI);
           
-          const light = 0.3 + 0.7 * ((z/RADIUS + 1)/2);
+          // Inverted lighting: use -z to make the "far side" (which appears larger) brighter
+          const light = 0.3 + 0.7 * ((-z/RADIUS + 1)/2); 
           let colorStyle;
           switch(d.type) {
             case 'water':    colorStyle = `rgba(0,100,200,${(alpha * light).toFixed(3)})`; break;
@@ -279,11 +309,7 @@
           }
           ctx.fillStyle = colorStyle;
           ctx.fill();
-
-          if (dots.indexOf(d) === 0 && animationLogCount < 5 && dots.length > 0) {
-          }
         }
-        if (animationLogCount < 5 && dots.length > 0) animationLogCount++;
 
         requestAnimationFrame(animate);
       }
