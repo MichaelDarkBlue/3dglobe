@@ -58,8 +58,8 @@
     </div>
     <div>
       <label for="rotation-speed-slider">Rotation Speed:</label>
-      <input type="range" id="rotation-speed-slider" min="-100" max="100" step="1">
-      <span id="rotation-speed-value">7</span>
+      <input type="range" id="rotation-speed-slider" min="-50" max="50" step="1">
+      <span id="rotation-speed-value">1</span>
     </div>
     <div>
       <label for="cycle-duration-slider">Anim Cycle (ms):</label>
@@ -75,6 +75,11 @@
       <label for="life-duration-slider">Life (ms):</label>
       <input type="range" id="life-duration-slider" min="100" max="10000" step="100">
       <span id="life-duration-value">2000</span>
+    </div>
+    <div>
+      <label for="dot-size-slider">Dot Size:</label>
+      <input type="range" id="dot-size-slider" min="0.1" max="5" step="0.1">
+      <span id="dot-size-value">1</span>
     </div>
   </div>
 
@@ -97,13 +102,14 @@
   let DOT_COUNT = 6000; // Adjusted to match HTML span default
   let FOV       = RADIUS * 2; 
   const CENTER    = { x: width/2, y: height/2 };
+  let BASE_DOT_RADIUS = 1; // Default base dot radius
 
   // dot fade‐in/out cycle (ms)
   let CYCLE = 8000, 
         FADE  = 500, 
         LIFE  = 2000; 
 
-  let globalRotationSpeed = 0.00007; // Adjusted for initial slider value 7 (7 / 100000)
+  let globalRotationSpeed = 1 / 100000; // Adjusted for initial slider value 7 (7 / 100000)
 
   const landTypes = ['grass', 'sand', 'mountain']; 
   let dots = []; 
@@ -184,7 +190,7 @@
         dots.push({
           theta,
           phi: randomPhi, 
-          radius: 1 + Math.random()*2,
+          radius: BASE_DOT_RADIUS + Math.random() * BASE_DOT_RADIUS, // Use BASE_DOT_RADIUS
           phase : Math.random() * CYCLE, 
           type  : type
         });
@@ -212,11 +218,13 @@
     const fadeDurationValueSpan = document.getElementById('fade-duration-value');
     const lifeDurationSlider = document.getElementById('life-duration-slider');
     const lifeDurationValueSpan = document.getElementById('life-duration-value');
+    const dotSizeSlider = document.getElementById('dot-size-slider');
+    const dotSizeValueSpan = document.getElementById('dot-size-value');
 
     dotCountSlider.value = DOT_COUNT;
     dotCountValueSpan.textContent = DOT_COUNT;
     
-    const initialRotationSliderValue = globalRotationSpeed * 100000;
+    const initialRotationSliderValue = 1;
     rotationSpeedSlider.value = initialRotationSliderValue; 
     rotationSpeedValueSpan.textContent = initialRotationSliderValue;
 
@@ -227,6 +235,9 @@
     fadeDurationValueSpan.textContent = FADE;
     lifeDurationSlider.value = LIFE;
     lifeDurationValueSpan.textContent = LIFE;
+
+    dotSizeSlider.value = BASE_DOT_RADIUS;
+    dotSizeValueSpan.textContent = BASE_DOT_RADIUS.toFixed(1);
 
     const debouncedStartDotGeneration = debounce(() => {
       generateDotsIncrementally(DOT_COUNT, geoLandData); 
@@ -257,6 +268,12 @@
     lifeDurationSlider.addEventListener('input', (e) => {
       LIFE = parseInt(e.target.value);
       lifeDurationValueSpan.textContent = LIFE;
+    });
+
+    dotSizeSlider.addEventListener('input', (e) => {
+      BASE_DOT_RADIUS = parseFloat(e.target.value);
+      dotSizeValueSpan.textContent = BASE_DOT_RADIUS.toFixed(1);
+      debouncedStartDotGeneration();
     });
 
     controlsPanel.style.display = 'block'; 
