@@ -81,6 +81,11 @@
       <input type="range" id="dot-size-slider" min="0.1" max="5" step="0.1">
       <span id="dot-size-value">1</span>
     </div>
+    <div>
+      <label for="randomness-slider">Randomness:</label>
+      <input type="range" id="randomness-slider" min="0" max="1" step="0.01">
+      <span id="randomness-value">0.15</span>
+    </div>
   </div>
 
   <!-- D3 for geoContains, topojson-client to parse TopoJSON -->
@@ -110,11 +115,18 @@
         LIFE  = 2000; 
 
   let globalRotationSpeed = 1 / 100000; // Adjusted for initial slider value 7 (7 / 100000)
+  let RANDOMNESS = 0.15; // Default randomness value
 
   const landTypes = ['grass', 'sand', 'mountain']; 
   let dots = []; 
   let geoLandData = null; 
   let currentDotGenerationRequestId = null; // To manage incremental generation
+
+  // Deterministic pseudo-random function for smooth movement
+  function smoothRandom(seed, t) {
+    // Use a simple hash and sine for smoothness
+    return Math.sin(seed * 999 + t * 0.0007) * 0.5 + Math.sin(seed * 1234 - t * 0.0003) * 0.5;
+  }
 
   // Debounce utility function
   function debounce(func, delay) {
@@ -220,6 +232,8 @@
     const lifeDurationValueSpan = document.getElementById('life-duration-value');
     const dotSizeSlider = document.getElementById('dot-size-slider');
     const dotSizeValueSpan = document.getElementById('dot-size-value');
+    const randomnessSlider = document.getElementById('randomness-slider');
+    const randomnessValueSpan = document.getElementById('randomness-value');
 
     dotCountSlider.value = DOT_COUNT;
     dotCountValueSpan.textContent = DOT_COUNT;
@@ -238,6 +252,9 @@
 
     dotSizeSlider.value = BASE_DOT_RADIUS;
     dotSizeValueSpan.textContent = BASE_DOT_RADIUS.toFixed(1);
+
+    randomnessSlider.value = RANDOMNESS;
+    randomnessValueSpan.textContent = RANDOMNESS;
 
     const debouncedStartDotGeneration = debounce(() => {
       generateDotsIncrementally(DOT_COUNT, geoLandData); 
@@ -276,6 +293,11 @@
       debouncedStartDotGeneration();
     });
 
+    randomnessSlider.addEventListener('input', (e) => {
+      RANDOMNESS = parseFloat(e.target.value);
+      randomnessValueSpan.textContent = RANDOMNESS;
+    });
+
     controlsPanel.style.display = 'block'; 
   }
 
@@ -293,7 +315,7 @@
         const now    = performance.now();
         const rotAll = now * globalRotationSpeed; 
 
-        for(const d of dots){ 
+        for(const [i, d] of dots.entries()){ 
           const t = (now - d.phase + CYCLE*10) % CYCLE; 
           let alpha = 0;
           if(t < FADE)                  alpha = t/FADE;
@@ -304,9 +326,18 @@
 
           const currentDotPhi   = d.phi + rotAll; 
           const currentDotTheta = d.theta;
-          const x = RADIUS * Math.sin(currentDotTheta) * Math.cos(currentDotPhi);
-          const y = RADIUS * Math.cos(currentDotTheta);
-          const z = RADIUS * Math.sin(currentDotTheta) * Math.sin(currentDotPhi);
+
+          // --- Add random movement ---
+          // Use dot index and time for deterministic smooth offset
+          const randSeed = i + 1000 * d.phase;
+          const randT = now;
+          // Offset in spherical coordinates
+          const thetaOffset = RANDOMNESS * 0.2 * smoothRandom(randSeed, randT);
+          const phiOffset   = RANDOMNESS * 0.2 * smoothRandom(randSeed + 1, randT);
+
+          const x = RADIUS * Math.sin(currentDotTheta + thetaOffset) * Math.cos(currentDotPhi + phiOffset);
+          const y = RADIUS * Math.cos(currentDotTheta + thetaOffset);
+          const z = RADIUS * Math.sin(currentDotTheta + thetaOffset) * Math.sin(currentDotPhi + phiOffset);
 
           const [px,py,sc] = project(x,y,z);
 
